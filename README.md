@@ -1,61 +1,49 @@
 # Personal AI Database Control Center
 
-An independent fullstack control center for browsing and querying a local personal AI knowledge database at `E:\DataBase`.
+**Status:** V1.2 GitHub presentation polish complete · V1.1 UI refinement complete · Read-only by default
 
-This repository is **not** the `E:\DataBase` database repository itself. It is a separate application that reads from `E:\DataBase` and from the existing local knowledge API when available.
+Personal AI Database Control Center is a full-stack dashboard for browsing, searching, and generating task briefs from a local personal AI knowledge database.
 
-## Project Overview
+个人 AI 知识库检索与管理控制台，用于查看本地知识库状态、搜索多领域知识、浏览报告，并为 Codex / opencode / Claude Code 等 AI Agent 生成任务 Brief。
 
-Personal AI Database Control Center provides a read-only web console for local AI knowledge operations:
+This is an independent project. It is **not** the `E:\DataBase` repository itself.
 
-- Inspect database health and domain status.
-- Search backend/UI/workflow/automation knowledge.
-- Browse backend rules, templates, checklists, references, and reports.
-- Generate agent handoff briefs through the upstream database API.
-- Review V1.1 UI state through committed screenshots.
+## Why This Project Exists
 
-The project lives at:
+Local AI knowledge bases are useful only when agents and humans can quickly inspect what is available, retrieve the right domain knowledge, and turn that context into actionable task briefs.
 
-```text
-E:\Projects\personal-ai-db-control-center
-```
+This project provides a small, practical control center over a local database:
 
-The source knowledge database lives at:
-
-```text
-E:\DataBase
-```
+- Human-friendly dashboard for database and domain status.
+- Unified search surface over backend and other knowledge domains.
+- Report and rule browsing for backend engineering knowledge.
+- Brief generation for AI coding agents.
+- Safe read-only integration with the existing `E:\DataBase` runtime.
 
 ## Features
 
-- **Read-only FastAPI backend** wrapping local API calls, safe filesystem metadata, reports, and backend SQLite chunk lookup.
-- **React + Vite frontend** with a light SaaS-style console UI.
-- **Domain dashboard** for `backend`, `ui_design`, `ui_assets`, `agent_workflow`, and `automation`.
-- **Search page** with domain usage hints and friendly empty states.
-- **Backend knowledge browser** for rules, topics, patterns, checklists, templates, references, and reports.
-- **Reports reader** with a report list and scrollable content panel.
-- **Brief page** that separates retrieval queries, returned chunks, final handoff, and folded debug JSON.
-- **Validation script** for backend import and route-level acceptance checks.
+- Multi-domain status dashboard.
+- Backend knowledge search.
+- Knowledge domain browser.
+- Report viewer.
+- Brief generator for AI coding agents.
+- Read-only access to `E:\DataBase`.
+- Upstream API proxy to `http://127.0.0.1:8765`.
+- Safe fallback to local manifests and SQLite read-only query.
+- React + FastAPI full-stack structure.
+- V1.1 light SaaS-style frontend with Search / Reports / Brief UX fixes.
 
 ## Screenshots
 
-V1.1 UI review screenshots are stored under [`docs/screenshots`](docs/screenshots).
+Screenshots are stored in [`docs/screenshots`](docs/screenshots).
 
 ### Dashboard
 
 ![Dashboard](docs/screenshots/e04370a5e89c98d28c0a7b6a7d3d950c.png)
 
-### Domains
-
-![Domains](docs/screenshots/2b4c4d17304affe9dbbb270497e6a887.png)
-
 ### Search
 
 ![Search](docs/screenshots/9cbbe2e03131040a6a0000315680e275.png)
-
-### Backend Knowledge
-
-![Backend Knowledge](docs/screenshots/微信图片_20260429165439_236_4.png)
 
 ### Reports
 
@@ -65,41 +53,27 @@ V1.1 UI review screenshots are stored under [`docs/screenshots`](docs/screenshot
 
 ![Brief](docs/screenshots/a2162057d3bd319565d38afe38fb50f7.png)
 
+### Backend Knowledge
+
+![Backend Knowledge](docs/screenshots/微信图片_20260429165439_236_4.png)
+
+### Domains
+
+![Domains](docs/screenshots/2b4c4d17304affe9dbbb270497e6a887.png)
+
 ## Architecture
 
-```text
-frontend React console
-  -> project FastAPI backend
-    -> upstream local API at http://127.0.0.1:8765
-    -> read-only files under E:\DataBase
-    -> read-only backend SQLite index under E:\DataBase\runtime\db\sqlite\backend
+```mermaid
+flowchart TD
+    A[Frontend React / Vite<br/>http://127.0.0.1:5173] --> B[Control Center FastAPI backend<br/>http://127.0.0.1:8876]
+    B --> C[Upstream E:\\DataBase API<br/>http://127.0.0.1:8765]
+    B --> D[E:\\DataBase files<br/>README / rules / reports / manifests]
+    B --> E[E:\\DataBase SQLite indexes<br/>read-only backend chunks]
+    C --> D
+    C --> E
 ```
 
-Directory layout:
-
-```text
-personal-ai-db-control-center/
-  backend/
-    app/
-      core/
-      routers/
-      schemas/
-      services/
-    requirements.txt
-  frontend/
-    src/
-      components/
-      pages/
-      api.js
-      styles.css
-  docs/
-    API.md
-    screenshots/
-  scripts/
-    validate_project.py
-  PROJECT_REPORT.md
-  TASK_MEMORY.md
-```
+The control center backend is the safety boundary. The frontend does not read local files directly.
 
 ## Tech Stack
 
@@ -127,16 +101,18 @@ Tooling:
 
 ## Quick Start
 
-### 1. Start the upstream database API
+There are three services to understand.
 
-This project can read local files when needed, but `/brief` works best when the existing database API is running:
+### 1. Start `E:\DataBase` upstream API on port 8765
 
 ```powershell
 cd E:\DataBase\backend_api
 python -m uvicorn app.main:app --host 127.0.0.1 --port 8765
 ```
 
-### 2. Start the backend
+The control center can still read some local files when this upstream API is unavailable, but `/brief` works best when the upstream API is running.
+
+### 2. Start the control center backend on port 8876
 
 ```powershell
 cd E:\Projects\personal-ai-db-control-center\backend
@@ -145,7 +121,7 @@ python -m venv .venv
 .\.venv\Scripts\python -m uvicorn app.main:app --host 127.0.0.1 --port 8876
 ```
 
-### 3. Start the frontend
+### 3. Start the frontend on port 5173
 
 ```powershell
 cd E:\Projects\personal-ai-db-control-center\frontend
@@ -153,7 +129,7 @@ npm install
 npm run dev
 ```
 
-The frontend defaults to:
+Open:
 
 ```text
 http://127.0.0.1:5173
@@ -165,20 +141,11 @@ The frontend API base defaults to:
 http://127.0.0.1:8876
 ```
 
-Override it with `VITE_API_BASE` if needed.
-
-### 4. Validate the project
-
-```powershell
-cd E:\Projects\personal-ai-db-control-center
-python scripts\validate_project.py
-cd frontend
-npm run build
-```
+You can override it with `VITE_API_BASE`.
 
 ## Backend API Endpoints
 
-All project endpoints return the same response shape:
+All project endpoints use a unified response shape:
 
 ```json
 {
@@ -216,39 +183,97 @@ See [`docs/API.md`](docs/API.md) for the API reference.
 
 The project uses `E:\DataBase` as a read-only knowledge source:
 
-- Calls the existing upstream API at `http://127.0.0.1:8765` for `/health`, backend search, and `/brief` when available.
-- Reads domain metadata, rules, reports, README files, and manifests through safe path allowlists.
+- Calls the upstream API at `http://127.0.0.1:8765` for database health, backend search, and brief generation.
+- Reads domain metadata, rules, reports, README files, and manifests through allowlisted paths.
 - Reads backend chunks from `E:\DataBase\runtime\db\sqlite\backend\backend_references.db` using SQLite read-only mode.
+- Falls back to local files and read-only SQLite query when the upstream API is unavailable.
 - Does not copy database files into this project.
 
 ## Safety Boundaries
 
 This repository is intentionally conservative:
 
-- It is an independent project, not the `E:\DataBase` repository.
-- It only reads from `E:\DataBase`.
+- This project is independent from `E:\DataBase`.
+- It does not modify `E:\DataBase`.
 - It does not modify `E:\DataBase\backend_api`.
-- It does not modify `E:\DataBase\runtime\db`.
 - It does not rebuild indexes.
 - It does not clear SQLite tables.
-- It does not write secrets, JWT secrets, database passwords, private keys, or real credentials.
+- It does not write to `runtime/db`.
+- It is read-only by default.
+- It should not store secrets.
+- `.env.example` must only contain placeholders.
 - It does not provide delete, write, reindex, or migration endpoints.
+
+## Validation
+
+Current validation commands:
+
+```powershell
+cd E:\Projects\personal-ai-db-control-center
+python scripts\validate_project.py
+git diff --check
+```
+
+Frontend production build:
+
+```powershell
+cd E:\Projects\personal-ai-db-control-center\frontend
+npm run build
+```
+
+V1.2 README polish is documentation-only, so no backend `py_compile` or frontend build is required unless code changes are introduced.
+
+## Project Structure
+
+```text
+personal-ai-db-control-center/
+  backend/
+    app/
+      core/
+      routers/
+      schemas/
+      services/
+    requirements.txt
+    README.md
+  frontend/
+    src/
+      components/
+      pages/
+      api.js
+      styles.css
+    package.json
+    README.md
+  docs/
+    API.md
+    screenshots/
+  scripts/
+    validate_project.py
+  PROJECT_REPORT.md
+  TASK_MEMORY.md
+  README.md
+```
 
 ## Roadmap
 
-- **V1.1**: completed acceptance and UI refinement.
-- **V1.2**: screenshot-based visual QA, source-type filters, report navigation polish.
-- **V1.3**: simple token authentication.
-- **V1.4**: index rebuild task entry with explicit human confirmation.
-- **V1.5**: Agent SDK and standardized handoff payloads.
+- **V1.1:** UI refinement and UX fixes completed.
+- **V1.2:** GitHub presentation polish / README / screenshots.
+- **V1.3:** Search weighting optimization.
+- **V1.4:** Read-only frontend detail viewer improvements.
+- **V1.5:** Optional token authentication.
+- **V1.6:** Agent SDK / standardized handoff payload.
 
-## Notes for Codex / opencode
+## Resume Description
 
-Before making changes, inspect:
+中文：
 
-- [`README.md`](README.md)
-- [`PROJECT_REPORT.md`](PROJECT_REPORT.md)
-- [`TASK_MEMORY.md`](TASK_MEMORY.md)
-- [`docs/API.md`](docs/API.md)
+基于 FastAPI 与 React 构建个人 AI 知识库检索与管理控制台，实现多领域知识库状态监控、统一搜索、任务 Brief 生成、报告浏览和后端知识规则召回，为 Codex、opencode、Claude Code 等 AI Agent 提供结构化上下文支持。
 
-Do not edit `E:\DataBase` from this project unless a future task explicitly changes the safety boundary.
+English:
+
+A full-stack dashboard built with FastAPI and React for managing a local personal AI knowledge database, supporting domain status inspection, unified search, report browsing, and task brief generation for AI coding agents.
+
+## License / Notes
+
+This project is currently a personal local tool and portfolio project.
+
+No real secrets, private keys, JWT secrets, database passwords, or production credentials should be committed. Keep local database artifacts and runtime indexes in `E:\DataBase`; this repository should remain a separate read-only control center.

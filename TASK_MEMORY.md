@@ -11,5 +11,7 @@
 - Verification: `npm run build` passed; `python scripts/validate_project.py` passed; `git diff --check` passed with LF/CRLF warnings only.
 - Last completed: README GitHub presentation polish. Root README was rewritten with Project Overview, Features, Screenshots, Architecture, Tech Stack, Quick Start, API endpoints, frontend pages, E:\DataBase usage, safety boundaries, roadmap, and screenshot links under `docs/screenshots`.
 - Verification: README-only/docs change; `git diff --check` passed.
+- Last completed: V1.2 README and GitHub presentation polish. README now includes status, why the project exists, Mermaid architecture, 3-service Quick Start, screenshot references, validation, project structure, updated roadmap, resume descriptions, and license/notes.
+- Verification: Documentation-only change; `git diff --check` passed. No npm build or py_compile run because no code changed.
 - Known traps: Do not edit/copy/reindex `E:\DataBase`; SQLite connection is intentionally read-only; local database API `127.0.0.1:8765` may be unavailable, so `/brief` runtime behavior depends on starting it.
 - Next likely edit points: add screenshot-based visual QA for 1366px/1920px, add Search source_type filters, add simple token auth in V1.3.
