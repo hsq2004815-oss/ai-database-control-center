@@ -4,11 +4,33 @@ import DomainCard from "../components/DomainCard.jsx";
 
 export default function Domains() {
   const [domains, setDomains] = useState([]);
+  const [statusMap, setStatusMap] = useState({});
   const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api.domains().then((data) => setDomains(data.domains || [])).catch((err) => setError(err.message));
+    async function load() {
+      setLoading(true);
+      try {
+        const data = await api.domains();
+        const items = data.domains || [];
+        setDomains(items);
+        const pairs = await Promise.all(items.map(async (item) => {
+          try {
+            return [item.domain, await api.domainStatus(item.domain)];
+          } catch {
+            return [item.domain, null];
+          }
+        }));
+        setStatusMap(Object.fromEntries(pairs));
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
 
   async function inspect(domain) {
@@ -28,9 +50,20 @@ export default function Domains() {
           <p className="eyebrow">Domain map</p>
           <h2>Allowed knowledge domains</h2>
         </div>
+        <span className="results-meta">{loading ? "Loading domains..." : `${domains.length} domains`}</span>
       </div>
       <div className="domain-grid">
-        {domains.map((domain) => <DomainCard key={domain.domain} domain={domain} onInspect={inspect} />)}
+        {domains.map((domain) => {
+          const metrics = domain.domain === "backend" && statusMap.backend ? [
+            { label: "rules", value: statusMap.backend.rules_count },
+            { label: "templates", value: statusMap.backend.templates_count },
+            { label: "reports", value: statusMap.backend.reports_count }
+          ] : statusMap[domain.domain] ? [
+            { label: "files", value: statusMap[domain.domain].known_file_count }
+          ] : null;
+          return <DomainCard key={domain.domain} domain={domain} metrics={metrics} onInspect={inspect} />;
+        })}
+        {!domains.length && !loading ? <div className="empty-state">No allowed domains returned.</div> : null}
       </div>
       <section className="panel">
         <div className="panel-title">

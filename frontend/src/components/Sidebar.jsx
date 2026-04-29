@@ -1,10 +1,10 @@
 const nav = [
-  { id: "dashboard", label: "Dashboard", icon: "▦" },
-  { id: "domains", label: "Domains", icon: "◇" },
-  { id: "search", label: "Search", icon: "⌕" },
-  { id: "backend", label: "Backend", icon: "≡" },
-  { id: "reports", label: "Reports", icon: "▤" },
-  { id: "brief", label: "Brief", icon: "✧" }
+  { id: "dashboard", label: "Dashboard", icon: "01" },
+  { id: "domains", label: "Domains", icon: "02" },
+  { id: "search", label: "Search", icon: "03" },
+  { id: "backend", label: "Backend", icon: "04" },
+  { id: "reports", label: "Reports", icon: "05" },
+  { id: "brief", label: "Brief", icon: "06" }
 ];
 
 export default function Sidebar({ activePage, onNavigate }) {
@@ -13,8 +13,8 @@ export default function Sidebar({ activePage, onNavigate }) {
       <div className="brand">
         <div className="brand-mark">AI</div>
         <div>
-          <strong>DB Control</strong>
-          <span>Knowledge Ops</span>
+          <strong>AI DB Console</strong>
+          <span>Personal AI Knowledge Console</span>
         </div>
       </div>
       <nav>

@@ -159,3 +159,91 @@ personal-ai-db-control-center/
 - V1.3: 增加简单 token 鉴权。
 - V1.4: 增加索引重建任务入口，但必须人工确认。
 - V1.5: 提供 Agent SDK 和标准 handoff payload。
+
+# V1.1 UI Refinement and Acceptance Report
+
+## 1. 本次目标
+
+本轮目标是对 V1 做正式验收补齐和前端 UI 精修：确认核心接口可用，补强验证脚本覆盖面，并将前端从黑色工程控制台打磨成更清爽的浅色 SaaS 控制台。任务边界保持不变：只读访问 `E:\DataBase`，不修改数据库本体、不重建索引、不新增重型架构、不提交 git。
+
+本地数据库 API `http://127.0.0.1:8765` 在本轮执行时拒绝连接，因此 UI/后端规则按任务允许的只读文件方式参考；项目自身 backend 验证仍通过本项目的 router/service 层完成。
+
+## 2. 接口补齐情况
+
+- `GET /domains/{domain}/status`: V1 已存在，本轮验证通过。
+- `GET /search`: V1 已存在，本轮验证通过。
+- `POST /brief`: V1 已存在，本轮验证脚本使用临时 mock 上游返回验证路由和统一响应，不依赖当前上游 API 在线。
+- `GET /reports/{domain}/{report_name}`: 本轮加入验证覆盖。
+- `GET /backend/chunks/{chunk_id}`: 本轮加入验证覆盖，chunk 数据来自 `E:\DataBase` backend SQLite 只读查询。
+
+没有新增破坏性接口，没有写入接口。
+
+## 3. 修改的 frontend 文件
+
+- `frontend/src/components/Layout.jsx`
+- `frontend/src/components/Sidebar.jsx`
+- `frontend/src/components/StatCard.jsx`
+- `frontend/src/components/DomainCard.jsx`
+- `frontend/src/components/SearchPanel.jsx`
+- `frontend/src/components/ReportList.jsx`
+- `frontend/src/components/BriefPanel.jsx`
+- `frontend/src/pages/Dashboard.jsx`
+- `frontend/src/pages/Domains.jsx`
+- `frontend/src/pages/Search.jsx`
+- `frontend/src/pages/BackendKnowledge.jsx`
+- `frontend/src/pages/Reports.jsx`
+- `frontend/src/pages/Brief.jsx`
+- `frontend/src/styles.css`
+
+## 4. 修改的 backend / 验证文件
+
+- `scripts/validate_project.py`
+
+本轮没有修改 backend app 业务代码。验证脚本新增 `/brief`、报告内容读取、backend chunk 读取覆盖。
+
+## 5. UI 风格变化
+
+V1 风格：黑色工程控制台，偏开发工具氛围。
+
+V1.1 风格：浅色高级 SaaS 控制台，使用 `#F6F8FB` 页面背景、白色主卡片、蓝灰文字层级、细边框、轻量阴影、少量蓝色和薄荷绿强调。品牌统一为 `AI Database Control Center` / `AI DB Console` / `Personal AI Knowledge Console`，移除了不自然的 `DB ControlKnowledge Ops` 风格文案。
+
+## 6. Search / Reports / Brief 交互改进
+
+- Search: 搜索框更突出，domain/limit 有明确 label，搜索按钮 loading 文案明显，结果区有 loading、empty、error 状态，结果卡片保留 title/source_type/chunk_id/path/summary/tags/priority/trust_level。
+- Reports: 左侧列表、右侧阅读器布局保留，报告 item 展示 phase 和 size，内容区可滚动，加载中和空状态更清楚。
+- Brief: prompt 输入区域改成专业 Agent prompt 面板，limit 设置保持清晰网格，结果拆成 backend queries、backend chunks、returned context 三块，不再只显示一段 raw JSON。
+
+## 7. 验证结果
+
+- `python -m py_compile E:\Projects\personal-ai-db-control-center\backend\app\main.py`: 已通过。
+- `backend\app` 下所有 Python 文件 `py_compile`: 已通过。
+- `python E:\Projects\personal-ai-db-control-center\scripts\validate_project.py`: 已通过。覆盖 `/health`、`/domains`、`/domains/backend/status`、`/search?domain=backend&q=JWT RBAC&limit=5`、`/brief`、`/reports?domain=backend`、`/backend/files?type=rules`、`/reports/{domain}/{report_name}`、`/backend/chunks/{chunk_id}`。
+- `npm run build`: 已通过。Vite build 输出 `dist/index.html`、CSS 和 JS bundle。
+- `git diff --check`: 已通过，只有 Windows LF/CRLF 提示，无 whitespace error。
+
+## 8. 未修改 E:\DataBase 的确认
+
+本轮没有修改 `E:\DataBase`，没有修改 `E:\DataBase\backend_api`，没有修改 `E:\DataBase\runtime\db`，没有重建索引，没有清空 SQLite 表，没有复制数据库文件到本项目。
+
+## 9. 下一步建议
+
+- V1.2: 增加前端视觉验收截图流程，并对 1366px / 1920px 进行人工或 Playwright 截图检查。
+- V1.2: 给 Search 增加结果筛选和 source_type 快捷过滤。
+- V1.3: 增加简单 token 鉴权和前端配置提示。
+- V1.4: 将索引重建入口做成只显示计划和人工确认，不直接执行。
+
+## V1.1 Follow-up UX Fixes
+
+本次针对 V1.1 页面可用性做了小范围修正，没有修改 backend 接口和数据库边界。
+
+- Search: 增加 domain usage hint，明确 `backend` 适合 API/JWT/RBAC/database/deployment/security，`ui_design` 适合 UI/dashboard/layout/SaaS/visual style，`automation` 适合 Playwright/CDP/modal/upload flows。非 backend domain 搜索 JWT/RBAC 无结果时，显示该词通常属于 backend domain 的友好空状态。
+- Reports: 空报告列表文案统一为 `No reports available for this domain yet`，避免用户误判为系统故障。
+- Brief: 主展示区改为 active query groups、实际返回的 chunk groups、final handoff；raw upstream JSON 改成默认折叠的 `Debug output`。当 ui/automation/assets limit 为 0 时，不在主展示区突出对应 query。
+
+验证：
+
+- `npm run build`: 通过。
+- `python E:\Projects\personal-ai-db-control-center\scripts\validate_project.py`: 通过。
+- `git diff --check`: 通过，只有 Windows LF/CRLF 提示。
+
+安全边界确认：未修改 `E:\DataBase`，未修改 backend 数据库，未重建索引，未新增依赖，未改 API 路径。

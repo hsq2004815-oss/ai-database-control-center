@@ -7,20 +7,31 @@ export default function Reports() {
   const [reports, setReports] = useState([]);
   const [selected, setSelected] = useState(null);
   const [content, setContent] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    api.reports(domain).then((data) => setReports(data.reports || [])).catch((err) => setError(err.message));
+    setLoading(true);
+    setSelected(null);
+    setContent(null);
+    api.reports(domain)
+      .then((data) => setReports(data.reports || []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, [domain]);
 
   async function openReport(report) {
     setSelected(report.name);
+    setContentLoading(true);
     setError("");
     try {
       setContent(await api.reportContent(domain, report.name));
     } catch (err) {
       setError(err.message);
+    } finally {
+      setContentLoading(false);
     }
   }
 
@@ -41,13 +52,13 @@ export default function Reports() {
       </div>
       {error ? <div className="error-banner">{error}</div> : null}
       <div className="split-view">
-        <ReportList reports={reports} selected={selected} onSelect={openReport} />
+        {loading ? <div className="empty-state">Loading reports...</div> : <ReportList reports={reports} selected={selected} onSelect={openReport} />}
         <section className="panel report-content">
           <div className="panel-title">
             <h3>{content?.name || "Report content"}</h3>
-            <span>{content?.truncated ? "truncated" : "full"}</span>
+            <span>{content ? (content.truncated ? "truncated" : "full") : domain}</span>
           </div>
-          <pre>{content?.content || "Choose a report to preview."}</pre>
+          <pre>{contentLoading ? "Loading report content..." : content?.content || (reports.length ? "Choose a report to preview." : "No reports available for this domain yet.")}</pre>
         </section>
       </div>
     </section>

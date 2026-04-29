@@ -1,6 +1,6 @@
 export default function ReportList({ reports, selected, onSelect }) {
   if (!reports?.length) {
-    return <div className="empty-state">No reports found for this domain.</div>;
+    return <div className="empty-state">No reports available for this domain yet.</div>;
   }
   return (
     <div className="report-list">
@@ -13,6 +13,7 @@ export default function ReportList({ reports, selected, onSelect }) {
         >
           <strong>{report.title || report.name}</strong>
           <span>{report.relative_path}</span>
+          <small>{report.phase} · {Math.ceil(report.size / 1024)} KB</small>
         </button>
       ))}
     </div>

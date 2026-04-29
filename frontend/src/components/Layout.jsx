@@ -7,12 +7,12 @@ export default function Layout({ activePage, onNavigate, children }) {
       <main className="workspace">
         <header className="topbar">
           <div>
-            <p className="eyebrow">Read-only database console</p>
-            <h1>Personal AI Database Control Center</h1>
+            <p className="eyebrow">Local knowledge operations for AI agents</p>
+            <h1>AI Database Control Center</h1>
           </div>
           <div className="status-pill">
             <span className="pulse" />
-            local API gateway
+            read-only gateway
           </div>
         </header>
         {children}

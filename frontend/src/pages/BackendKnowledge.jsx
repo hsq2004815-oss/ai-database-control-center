@@ -6,11 +6,16 @@ const types = ["rules", "topics", "patterns", "checklists", "templates", "refere
 export default function BackendKnowledge() {
   const [type, setType] = useState("rules");
   const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     setError("");
-    api.backendFiles(type).then((data) => setFiles(data.files || [])).catch((err) => setError(err.message));
+    setLoading(true);
+    api.backendFiles(type)
+      .then((data) => setFiles(data.files || []))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   }, [type]);
 
   return (
@@ -32,14 +37,16 @@ export default function BackendKnowledge() {
       <section className="panel">
         <div className="panel-title">
           <h3>{type}</h3>
-          <span>{files.length} files</span>
+          <span>{loading ? "loading" : `${files.length} files`}</span>
         </div>
         <div className="file-table">
+          {loading ? <div className="empty-state compact">Loading backend knowledge files...</div> : null}
+          {!loading && !files.length ? <div className="empty-state compact">No files found for this type.</div> : null}
           {files.map((file) => (
             <div className="file-row" key={file.relative_path}>
               <strong>{file.title || file.name}</strong>
               <span>{file.relative_path}</span>
-              <small>{Math.ceil(file.size / 1024)} KB</small>
+              <small>{Math.ceil(file.size / 1024)} KB · {file.modified_at}</small>
             </div>
           ))}
         </div>

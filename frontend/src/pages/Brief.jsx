@@ -35,7 +35,10 @@ export default function Brief() {
         </div>
       </div>
       <form className="brief-form" onSubmit={submit}>
+        <label className="prompt-field">
+          <span>Task prompt</span>
         <textarea value={task} onChange={(event) => setTask(event.target.value)} rows={5} />
+        </label>
         <div className="limit-grid">
           {Object.keys(limits).map((name) => (
             <label key={name}>
@@ -47,7 +50,8 @@ export default function Brief() {
         <button className="primary-button" disabled={loading} type="submit">{loading ? "Generating" : "Generate brief"}</button>
       </form>
       {error ? <div className="error-banner">{error}</div> : null}
-      <BriefPanel data={data} />
+      {loading ? <div className="empty-state">Calling the upstream brief endpoint...</div> : null}
+      <BriefPanel data={data} limits={limits} />
     </section>
   );
 }

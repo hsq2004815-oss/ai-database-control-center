@@ -99,23 +99,49 @@ class FakeRequest:
 
 
 def call_handlers() -> list[dict]:
-    from app.routers import backend_files, domains, health, reports, search
+    from app.routers import backend_files, brief, domains, health, reports, search
+    from app.schemas.brief import BriefRequest
+    from app.services.filesystem_service import list_reports
 
     request = FakeRequest()
+    original_brief = brief.api_client.brief
+    brief.api_client.brief = lambda payload: {
+        "backend_queries": ["FastAPI API design"],
+        "backend_chunks": [],
+        "final_handoff": {"validation": "mocked upstream for route acceptance"},
+        "payload": payload,
+    }
     checks = [
         ("/health", lambda: health.health(request)),
         ("/domains", lambda: domains.domains(request)),
         ("/domains/backend/status", lambda: domains.status("backend", request)),
         ("/search?domain=backend&q=JWT%20RBAC&limit=5", lambda: search.search_endpoint(request, domain="backend", q="JWT RBAC", limit=5)),
+        ("/brief", lambda: brief.brief(BriefRequest(task="Validate FastAPI backend handoff", backend_limit=2, workflow_limit=1), request)),
         ("/reports?domain=backend", lambda: reports.reports(request, domain="backend")),
         ("/backend/files?type=rules", lambda: backend_files.backend_files(request, type="rules")),
     ]
     results = []
-    for path, invoke in checks:
-        payload = invoke()
-        assert_true(payload.get("ok") is True, f"{path} did not return ok=true")
-        assert_true("request_id" in payload, f"{path} did not use unified response")
-        results.append({"path": path, "status_code": 200, "ok": payload.get("ok")})
+    try:
+        for path, invoke in checks:
+            payload = invoke()
+            assert_true(payload.get("ok") is True, f"{path} did not return ok=true")
+            assert_true("request_id" in payload, f"{path} did not use unified response")
+            results.append({"path": path, "status_code": 200, "ok": payload.get("ok")})
+
+        report_items = list_reports("backend")
+        if report_items:
+            report_name = report_items[0]["name"]
+            payload = reports.report_content("backend", report_name, request)
+            assert_true(payload.get("ok") is True, "/reports/{domain}/{report_name} did not return ok=true")
+            results.append({"path": f"/reports/backend/{report_name}", "status_code": 200, "ok": True})
+
+        search_payload = search.search_endpoint(request, domain="backend", q="API Design Rules", limit=1)
+        first = search_payload["data"]["results"][0]
+        chunk_payload = backend_files.backend_chunk(first["chunk_id"], request)
+        assert_true(chunk_payload.get("ok") is True, "/backend/chunks/{chunk_id} did not return ok=true")
+        results.append({"path": f"/backend/chunks/{first['chunk_id']}", "status_code": 200, "ok": True})
+    finally:
+        brief.api_client.brief = original_brief
     return results
 
 

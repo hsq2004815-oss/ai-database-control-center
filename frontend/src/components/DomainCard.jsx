@@ -1,4 +1,4 @@
-export default function DomainCard({ domain, onInspect }) {
+export default function DomainCard({ domain, metrics, onInspect }) {
   return (
     <article className="domain-card">
       <div className="card-heading">
@@ -9,6 +9,16 @@ export default function DomainCard({ domain, onInspect }) {
         <span className={domain.exists ? "badge good" : "badge warn"}>{domain.status}</span>
       </div>
       <p>{domain.description}</p>
+      {metrics ? (
+        <div className="metric-strip">
+          {metrics.map((metric) => (
+            <span key={metric.label}>
+              <strong>{metric.value}</strong>
+              {metric.label}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="badge-row">
         {domain.available_sources.map((source) => (
           <span className="badge" key={source}>{source}</span>
