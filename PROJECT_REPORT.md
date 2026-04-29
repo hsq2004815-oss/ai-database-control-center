@@ -472,3 +472,81 @@ Brief handoff 包含：
 - 为 Search 导出增加 top 3 / top 5 / all 范围选择。
 - 为 Brief 导出增加 Short / Full 模式预览。
 - 后续可加入标准化 handoff schema，但仍保持导出在浏览器端完成。
+
+# V1.6 Release Polish Report
+
+## 1. 本次目标
+
+V1.6 是 release polish，不新增功能。目标是把项目整理成适合 GitHub 展示、简历描述和后续 release/tag 的稳定版本，重点更新 README、API 文档、模块 README、release notes、项目报告和任务记忆。
+
+## 2. 修改的文档
+
+- `README.md`
+- `docs/API.md`
+- `backend/README.md`
+- `frontend/README.md`
+- `PROJECT_REPORT.md`
+- `TASK_MEMORY.md`
+- `RELEASE_NOTES.md`
+
+## 3. screenshots 引用情况
+
+发现并继续引用 `docs/screenshots` 中已有 6 张 PNG：
+
+- Dashboard
+- Domains
+- Search
+- Backend Knowledge
+- Reports
+- Brief
+
+V1.4 Search detail viewer 与 V1.5 Handoff export 暂无单独截图，README 中保留截图入口，并说明可在本地运行 frontend 后补充。
+
+## 4. README 新增/更新章节
+
+README 已整理为 V1.6 GitHub 展示结构，包含：
+
+- Overview
+- Status
+- Features
+- Screenshots
+- Architecture
+- Tech Stack
+- Quick Start
+- Backend API Endpoints
+- Frontend Pages
+- Agent Handoff Export
+- How It Uses `E:\DataBase`
+- Safety Boundaries
+- Validation
+- Project Structure
+- Roadmap
+- Resume Description
+- Notes
+
+## 5. 关键展示内容更新
+
+- Architecture: 更新为 GitHub 可渲染 Mermaid 图，明确 React/Vite frontend、FastAPI backend、upstream `E:\DataBase` API、只读本地文件和只读 SQLite/FTS indexes。
+- Quick Start: 明确区分 upstream knowledge API `8765`、Control Center backend `8876`、frontend `5173` 三个服务。
+- Safety Boundaries: 强调项目独立于 `E:\DataBase`，不修改 `backend_api`、`runtime/db`，不重建索引、不清空 SQLite、默认只读、不存 secrets。
+- Roadmap: 更新为 V1.1 到 V1.6 已完成路线，并列出 V1.7/V1.8/V2.0 可选方向。
+- Resume Description: 增加中英文简历描述，覆盖搜索排序、详情查看、Brief、Agent Handoff Markdown export。
+
+## 6. 是否修改功能代码
+
+未修改功能代码。本轮只修改 Markdown 文档和 release notes。
+
+## 7. 是否修改 E:\DataBase
+
+未修改 `E:\DataBase`，未修改 `E:\DataBase\backend_api`，未修改 `E:\DataBase\runtime\db`，未重建索引，未清空 SQLite 表，未复制数据库文件。
+
+## 8. 验证结果
+
+- `git diff --check`: 已通过，只有 Windows LF/CRLF 提示。
+- 未运行 `py_compile` / `validate_project.py` / `npm run build`，因为本轮只修改 Markdown 文档，没有修改 Python、JS、CSS 或功能代码。
+
+## 9. 下一步建议
+
+- 补充 V1.4 Search detail viewer 和 V1.5 Handoff export 的最新截图。
+- 提交 GitHub 后建议打 tag `v1.6`。
+- 后续 V1.7 可做 Codex / opencode / Claude Code prompt pack templates。
