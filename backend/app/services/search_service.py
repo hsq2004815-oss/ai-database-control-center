@@ -1,4 +1,5 @@
 import json
+import re
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -7,6 +8,86 @@ from app.core.config import settings
 from app.core.responses import ApiError
 from app.services.database_api_client import api_client
 from app.services.filesystem_service import DOMAINS, domain_path, safe_list_files
+
+
+SOURCE_TYPE_WEIGHTS = {
+    "rule": 100,
+    "checklist": 90,
+    "template": 80,
+    "pattern": 75,
+    "topic": 65,
+    "reference": 55,
+    "github_project_analysis": 35,
+    "github_project_chunk": 30,
+    "file_metadata": 20,
+    "unknown": 10,
+}
+
+PRIORITY_WEIGHTS = {
+    "high": 30,
+    "medium": 15,
+    "low": 0,
+}
+
+TRUST_LEVEL_WEIGHTS = {
+    "core_reference": 20,
+    "good_reference": 12,
+    "not_applicable": 8,
+    "metadata": 5,
+    "sample_only": -10,
+    "low_reference": -20,
+}
+
+PATH_WEIGHTS = [
+    ("domains/backend/rules", 30),
+    ("domains/backend/wiki/checklists", 25),
+    ("domains/backend/wiki/templates", 22),
+    ("domains/backend/wiki/patterns", 20),
+    ("domains/backend/wiki/topics", 15),
+    ("domains/backend/references", 10),
+    ("processed/metadata/github_projects", -5),
+    ("processed/chunks/github_projects", -5),
+]
+
+CORE_GUIDANCE_TYPES = {"rule", "checklist", "template", "pattern"}
+PROJECT_SOURCE_TYPES = {"github_project_analysis", "github_project_chunk"}
+RULE_QUERY_TERMS = {
+    "jwt",
+    "rbac",
+    "auth",
+    "permission",
+    "permissions",
+    "api",
+    "design",
+    "error",
+    "handling",
+    "database",
+    "modeling",
+    "security",
+    "checklist",
+    "docker",
+    "env",
+    "rag",
+    "backend",
+}
+PROJECT_QUERY_TERMS = {
+    "fastapi",
+    "express",
+    "prisma",
+    "boilerplate",
+    "starter",
+    "github",
+    "project",
+    "repo",
+    "repository",
+    "case",
+    "analysis",
+    "best",
+    "practices",
+    "项目",
+    "项目分析",
+}
+PROJECT_QUERY_PHRASES = {"starter kit", "template repo", "github project", "project analysis", "best practices", "项目分析"}
 
 
 def validate_limit(limit: int) -> None:
@@ -26,21 +107,166 @@ def search(domain: str, q: str, limit: int) -> dict[str, Any]:
     validate_limit(limit)
     if domain not in DOMAINS and domain != "all":
         raise ApiError("INVALID_DOMAIN", details={"domain": domain}, status_code=400)
+    candidate_limit = expanded_candidate_limit(limit)
     if domain == "backend":
         try:
-            upstream = api_client.backend_search(query, limit)
-            return {"domain": domain, "query": query, "limit": limit, "source": "upstream_api", "results": normalize_upstream_results(upstream)}
+            upstream = api_client.backend_search(query, candidate_limit)
+            results = rerank_results(normalize_upstream_results(upstream), query, limit)
+            return {"domain": domain, "query": query, "limit": limit, "source": "upstream_api", "results": results}
         except ApiError:
-            return {"domain": domain, "query": query, "limit": limit, "source": "sqlite_fallback", "results": search_backend_sqlite(query, limit)}
+            results = rerank_results(search_backend_sqlite(query, candidate_limit), query, limit)
+            return {"domain": domain, "query": query, "limit": limit, "source": "sqlite_fallback", "results": results}
     if domain == "all":
         backend_results = []
         try:
-            backend_results = normalize_upstream_results(api_client.backend_search(query, min(limit, 10)))
+            backend_results = normalize_upstream_results(api_client.backend_search(query, candidate_limit))
         except ApiError:
-            backend_results = search_backend_sqlite(query, min(limit, 10))
+            backend_results = search_backend_sqlite(query, candidate_limit)
         metadata_results = search_domain_files(query, limit, exclude={"backend"})
-        return {"domain": domain, "query": query, "limit": limit, "source": "aggregate", "results": (backend_results + metadata_results)[:limit]}
+        return {"domain": domain, "query": query, "limit": limit, "source": "aggregate", "results": rerank_results(backend_results + metadata_results, query, limit)}
     return {"domain": domain, "query": query, "limit": limit, "source": "filesystem_metadata", "results": search_domain_files(query, limit, include={domain})}
+
+
+def expanded_candidate_limit(limit: int) -> int:
+    return min(max(limit * 4, 20), 50)
+
+
+def normalize_text(value: Any) -> str:
+    if isinstance(value, (list, tuple, set)):
+        return " ".join(normalize_text(item) for item in value)
+    if isinstance(value, dict):
+        return " ".join(f"{key} {normalize_text(item)}" for key, item in value.items())
+    return str(value or "").lower()
+
+
+def query_terms(query: str) -> set[str]:
+    terms = {part for part in re.findall(r"[a-z0-9_]+|[\u4e00-\u9fff]+", query.lower()) if len(part) > 1}
+    return terms or {query.lower().strip()}
+
+
+def has_term_match(terms: set[str], value: Any) -> bool:
+    text = normalize_text(value)
+    return any(term in text for term in terms)
+
+
+def source_type_for(result: dict[str, Any]) -> str:
+    source_type = normalize_text(result.get("source_type")).strip() or "unknown"
+    if source_type in SOURCE_TYPE_WEIGHTS:
+        return source_type
+    relative_path = normalize_text(result.get("relative_path"))
+    if "/rules/" in f"/{relative_path}" or relative_path.startswith("domains/backend/rules"):
+        return "rule"
+    if "wiki/checklists" in relative_path:
+        return "checklist"
+    if "wiki/templates" in relative_path:
+        return "template"
+    if "wiki/patterns" in relative_path:
+        return "pattern"
+    if "wiki/topics" in relative_path:
+        return "topic"
+    if "github_projects" in relative_path:
+        return "github_project_chunk"
+    return source_type
+
+
+def is_project_query(query: str, terms: set[str]) -> bool:
+    q_lower = query.lower()
+    return any(phrase in q_lower for phrase in PROJECT_QUERY_PHRASES) or bool(terms & PROJECT_QUERY_TERMS)
+
+
+def is_rule_query(query: str, terms: set[str]) -> bool:
+    q_lower = query.lower()
+    rule_phrase = any(phrase in q_lower for phrase in ("api design", "error handling", "database modeling", "security checklist", "docker env", "rag backend"))
+    return rule_phrase or len(terms & RULE_QUERY_TERMS) >= 2
+
+
+def rank_tier_for(result: dict[str, Any], source_type: str) -> str:
+    relative_path = normalize_text(result.get("relative_path"))
+    if source_type in CORE_GUIDANCE_TYPES:
+        return "core_guidance"
+    if source_type in {"topic", "reference"}:
+        return "topic_or_reference"
+    if source_type in PROJECT_SOURCE_TYPES or "github_projects" in relative_path:
+        return "project_reference"
+    return "metadata"
+
+
+def add_score(score: int, reasons: list[str], amount: int, label: str) -> int:
+    if amount:
+        reasons.append(f"{label} {amount:+d}")
+    return score + amount
+
+
+def rank_search_result(result: dict[str, Any], query: str) -> dict[str, Any]:
+    terms = query_terms(query)
+    source_type = source_type_for(result)
+    score = 0
+    reasons: list[str] = []
+
+    score = add_score(score, reasons, SOURCE_TYPE_WEIGHTS.get(source_type, SOURCE_TYPE_WEIGHTS["unknown"]), f"source:{source_type}")
+    priority = normalize_text(result.get("priority")).strip()
+    score = add_score(score, reasons, PRIORITY_WEIGHTS.get(priority, 0), f"priority:{priority or 'none'}")
+    trust_level = normalize_text(result.get("trust_level")).strip()
+    score = add_score(score, reasons, TRUST_LEVEL_WEIGHTS.get(trust_level, 0), f"trust:{trust_level or 'none'}")
+
+    field_weights = [
+        ("title match", 20, result.get("title")),
+        ("section match", 12, result.get("section")),
+        ("tags match", 15, [result.get("tags", []), result.get("keywords", [])]),
+        ("summary match", 10, result.get("summary")),
+        ("content match", 5, result.get("content")),
+    ]
+    for label, weight, value in field_weights:
+        if has_term_match(terms, value):
+            score = add_score(score, reasons, weight, label)
+
+    relative_path = normalize_text(result.get("relative_path")).replace("\\", "/")
+    for path_part, weight in PATH_WEIGHTS:
+        if path_part in relative_path:
+            score = add_score(score, reasons, weight, f"path:{path_part}")
+
+    metadata_text = normalize_text(result.get("metadata"))
+    combined_reference_text = " ".join([trust_level, relative_path, metadata_text])
+    if "sample_only" in combined_reference_text:
+        score = add_score(score, reasons, -15, "sample_only penalty")
+    if "low_reference" in combined_reference_text:
+        score = add_score(score, reasons, -30, "low_reference penalty")
+    if not normalize_text(result.get("summary")) or len(normalize_text(result.get("content"))) < 80:
+        score = add_score(score, reasons, -5, "thin content penalty")
+
+    project_query = is_project_query(query, terms)
+    rule_query = is_rule_query(query, terms)
+    if rule_query and source_type in CORE_GUIDANCE_TYPES:
+        score = add_score(score, reasons, 12, "rule-query guidance boost")
+    if rule_query and source_type in PROJECT_SOURCE_TYPES:
+        score = add_score(score, reasons, -10, "rule-query project penalty")
+    if project_query and source_type == "github_project_analysis":
+        score = add_score(score, reasons, 65, "project-query analysis boost")
+    elif project_query and source_type == "github_project_chunk":
+        score = add_score(score, reasons, 45, "project-query chunk boost")
+
+    ranked = dict(result)
+    ranked["rank_score"] = score
+    ranked["rank_tier"] = rank_tier_for(result, source_type)
+    ranked["rank_reason"] = "; ".join(reasons[:8])
+    metadata = dict(ranked.get("metadata") or {})
+    metadata.update({"rank_score": score, "rank_tier": ranked["rank_tier"], "rank_reason": ranked["rank_reason"]})
+    ranked["metadata"] = metadata
+    return ranked
+
+
+def rerank_results(results: list[dict[str, Any]], query: str, limit: int) -> list[dict[str, Any]]:
+    ranked = [rank_search_result(result, query) for result in results]
+    ranked.sort(
+        key=lambda item: (
+            item.get("rank_score", 0),
+            item.get("priority") == "high",
+            item.get("source_type") in CORE_GUIDANCE_TYPES,
+            item.get("title") or "",
+        ),
+        reverse=True,
+    )
+    return ranked[:limit]
 
 
 def normalize_upstream_results(payload: Any) -> list[dict[str, Any]]:

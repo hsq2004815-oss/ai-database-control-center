@@ -8,6 +8,26 @@ const DOMAIN_HINTS = {
   automation: "Playwright, CDP, modal handling, upload flows"
 };
 
+const CORE_SOURCE_TYPES = new Set(["rule", "checklist", "template", "pattern"]);
+const PROJECT_SOURCE_TYPES = new Set(["github_project_analysis", "github_project_chunk"]);
+
+function sourceBadgeClass(sourceType) {
+  if (CORE_SOURCE_TYPES.has(sourceType)) {
+    return "badge source-badge core";
+  }
+  if (PROJECT_SOURCE_TYPES.has(sourceType)) {
+    return "badge source-badge project";
+  }
+  return "badge source-badge";
+}
+
+function sourceLabel(sourceType) {
+  if (PROJECT_SOURCE_TYPES.has(sourceType)) {
+    return "Project reference";
+  }
+  return sourceType || "metadata";
+}
+
 function emptyMessage(meta) {
   if (!meta) {
     return "No matching results. Try a broader query or switch domain.";
@@ -64,6 +84,9 @@ export default function Search() {
           <span>Playwright, CDP, modal handling, upload flows</span>
         </div>
       </section>
+      <div className="ranking-note">
+        Results are ranked with rules, checklists, templates and patterns prioritized over project analysis.
+      </div>
       {error ? <div className="error-banner">{error}</div> : null}
       <div className="results-meta">
         {loading ? "Searching the selected knowledge source..." : meta ? `${meta.source} · ${results.length} results · ${meta.query}` : "Run a search to inspect chunks and file metadata."}
@@ -75,17 +98,23 @@ export default function Search() {
           <article className="result-card" key={item.chunk_id}>
             <div className="card-heading">
               <div>
-                <p className="eyebrow">{item.source_type} · {item.section}</p>
+                <div className="result-meta-grid">
+                  <span className={sourceBadgeClass(item.source_type)}>{sourceLabel(item.source_type)}</span>
+                  {item.priority ? <span className="badge muted">priority: {item.priority}</span> : null}
+                  {item.trust_level ? <span className="badge muted">trust: {item.trust_level}</span> : null}
+                  {Number.isFinite(item.rank_score) ? <span className="badge muted">rank: {item.rank_score}</span> : null}
+                </div>
+                <p className="eyebrow">{item.rank_tier || "ranked result"}{item.section ? ` · ${item.section}` : ""}</p>
                 <h3>{item.title || item.chunk_id}</h3>
               </div>
               <span className="badge">{item.priority || "metadata"}</span>
             </div>
             <p>{item.summary || item.content || "No summary available."}</p>
+            {item.rank_reason ? <div className="rank-reason">{item.rank_reason}</div> : null}
             <div className="path-line">{item.relative_path}</div>
             <div className="badge-row">
               <span className="badge muted">{item.chunk_id}</span>
               {(item.tags || []).slice(0, 8).map((tag) => <span className="badge" key={tag}>{tag}</span>)}
-              {item.trust_level ? <span className="badge">{item.trust_level}</span> : null}
             </div>
           </article>
         ))}

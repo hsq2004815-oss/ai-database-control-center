@@ -140,6 +140,33 @@ def call_handlers() -> list[dict]:
         chunk_payload = backend_files.backend_chunk(first["chunk_id"], request)
         assert_true(chunk_payload.get("ok") is True, "/backend/chunks/{chunk_id} did not return ok=true")
         results.append({"path": f"/backend/chunks/{first['chunk_id']}", "status_code": 200, "ok": True})
+
+        jwt_payload = search.search_endpoint(request, domain="backend", q="JWT RBAC auth permission", limit=5)
+        jwt_results = jwt_payload["data"]["results"]
+        assert_true(jwt_results, "JWT/RBAC ranking search returned no results")
+        assert_true("rank_score" in jwt_results[0], "rank_score missing from ranked search results")
+        assert_true(
+            any(item.get("source_type") == "rule" or "rules" in item.get("relative_path", "") for item in jwt_results[:3]),
+            "JWT/RBAC top 3 did not include rules guidance",
+        )
+        results.append({"path": "/search ranking JWT RBAC auth permission", "status_code": 200, "ok": True})
+
+        api_payload = search.search_endpoint(request, domain="backend", q="API design error handling", limit=5)
+        api_results = api_payload["data"]["results"]
+        guidance_count = sum(
+            1
+            for item in api_results[:5]
+            if item.get("source_type") in {"rule", "checklist", "pattern", "template"}
+            or any(part in item.get("relative_path", "") for part in ("rules", "checklists", "patterns", "templates"))
+        )
+        assert_true(guidance_count >= 2, "API design top 5 did not prioritize rules/checklists/patterns/templates")
+        results.append({"path": "/search ranking API design error handling", "status_code": 200, "ok": True})
+
+        project_payload = search.search_endpoint(request, domain="backend", q="express prisma boilerplate", limit=5)
+        project_results = project_payload["data"]["results"]
+        assert_true(project_results, "Project-style ranking search returned no results")
+        assert_true("rank_score" in project_results[0], "rank_score missing from project-style search results")
+        results.append({"path": "/search ranking express prisma boilerplate", "status_code": 200, "ok": True})
     finally:
         brief.api_client.brief = original_brief
     return results

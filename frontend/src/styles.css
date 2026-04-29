@@ -386,6 +386,38 @@ h3 {
   line-height: 1.5;
 }
 
+.ranking-note {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.result-meta-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.source-badge.core {
+  color: var(--good);
+  background: var(--good-soft);
+  border-color: #bbf7d0;
+}
+
+.source-badge.project {
+  color: var(--warn);
+  background: var(--warn-soft);
+  border-color: #fed7aa;
+}
+
+.rank-reason {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 .domain-status-grid,
 .domain-grid {
   display: grid;
