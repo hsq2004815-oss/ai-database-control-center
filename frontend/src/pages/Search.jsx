@@ -10,6 +10,28 @@ const DOMAIN_HINTS = {
 
 const CORE_SOURCE_TYPES = new Set(["rule", "checklist", "template", "pattern"]);
 const PROJECT_SOURCE_TYPES = new Set(["github_project_analysis", "github_project_chunk"]);
+const SOURCE_LABELS = {
+  rule: "Core rule",
+  checklist: "Checklist",
+  template: "Template",
+  pattern: "Pattern",
+  topic: "Concept topic",
+  reference: "Reference",
+  github_project_analysis: "Project reference",
+  github_project_chunk: "Project sample",
+  file_metadata: "File metadata"
+};
+const SOURCE_DESCRIPTIONS = {
+  rule: "Core backend guidance. Treat this as primary decision support.",
+  checklist: "Operational checklist for validation, review, or release readiness.",
+  template: "Reusable implementation or documentation structure.",
+  pattern: "Reusable design or implementation pattern.",
+  topic: "Concept overview for orientation and terminology.",
+  reference: "Curated reference material for supporting context.",
+  github_project_analysis: "Project reference. Useful as an example, not a core rule.",
+  github_project_chunk: "Project sample. Use as supporting context only.",
+  file_metadata: "File metadata result. Open the source path for deeper inspection."
+};
 
 function sourceBadgeClass(sourceType) {
   if (CORE_SOURCE_TYPES.has(sourceType)) {
@@ -22,10 +44,7 @@ function sourceBadgeClass(sourceType) {
 }
 
 function sourceLabel(sourceType) {
-  if (PROJECT_SOURCE_TYPES.has(sourceType)) {
-    return "Project reference";
-  }
-  return sourceType || "metadata";
+  return SOURCE_LABELS[sourceType] || sourceType || "metadata";
 }
 
 function emptyMessage(meta) {
@@ -39,25 +58,76 @@ function emptyMessage(meta) {
   return hint ? `No matches in ${meta.domain}. This domain is best for: ${hint}.` : "No matching results. Try a broader query or switch domain.";
 }
 
+function previewText(item) {
+  return item.summary || item.content || "No summary available.";
+}
+
+function listValue(value) {
+  return Array.isArray(value) ? value.filter(Boolean) : [];
+}
+
+function DetailField({ label, children }) {
+  return (
+    <div className="detail-field">
+      <span>{label}</span>
+      <strong>{children || "none"}</strong>
+    </div>
+  );
+}
+
 export default function Search() {
   const [results, setResults] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
+  const [selectedChunkId, setSelectedChunkId] = useState("");
+  const [copyStatus, setCopyStatus] = useState("");
+
+  const selectedResult = results.find((item) => item.chunk_id === selectedChunkId) || results[0] || null;
 
   async function runSearch(params) {
     setLoading(true);
     setSearched(true);
     setError("");
+    setCopyStatus("");
     try {
       const data = await api.search(params);
+      const nextResults = data.results || [];
       setMeta(data);
-      setResults(data.results || []);
+      setResults(nextResults);
+      setSelectedChunkId(nextResults[0]?.chunk_id || "");
     } catch (err) {
       setError(err.message);
+      setResults([]);
+      setSelectedChunkId("");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function copyText(label, text) {
+    if (!text) {
+      setCopyStatus(`${label} is empty`);
+      return;
+    }
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.setAttribute("readonly", "");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopyStatus(`${label} copied`);
+    } catch {
+      setCopyStatus(`Could not copy ${label}`);
     }
   }
 
@@ -91,34 +161,108 @@ export default function Search() {
       <div className="results-meta">
         {loading ? "Searching the selected knowledge source..." : meta ? `${meta.source} · ${results.length} results · ${meta.query}` : "Run a search to inspect chunks and file metadata."}
       </div>
-      <div className="results-list">
-        {loading ? <div className="empty-state">Searching...</div> : null}
-        {searched && !loading && !error && !results.length ? <div className="empty-state">{emptyMessage(meta)}</div> : null}
-        {results.map((item) => (
-          <article className="result-card" key={item.chunk_id}>
-            <div className="card-heading">
-              <div>
-                <div className="result-meta-grid">
-                  <span className={sourceBadgeClass(item.source_type)}>{sourceLabel(item.source_type)}</span>
-                  {item.priority ? <span className="badge muted">priority: {item.priority}</span> : null}
-                  {item.trust_level ? <span className="badge muted">trust: {item.trust_level}</span> : null}
-                  {Number.isFinite(item.rank_score) ? <span className="badge muted">rank: {item.rank_score}</span> : null}
+      {loading ? <div className="empty-state">Searching...</div> : null}
+      {searched && !loading && !error && !results.length ? <div className="empty-state">{emptyMessage(meta)}</div> : null}
+      {results.length ? (
+        <div className="search-results-shell">
+          <div className="search-results-column">
+            {results.map((item) => (
+              <article
+                className={`result-card selectable ${selectedResult?.chunk_id === item.chunk_id ? "active" : ""}`}
+                key={item.chunk_id}
+                role="button"
+                tabIndex={0}
+                onClick={() => {
+                  setSelectedChunkId(item.chunk_id);
+                  setCopyStatus("");
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    setSelectedChunkId(item.chunk_id);
+                    setCopyStatus("");
+                  }
+                }}
+              >
+                <div className="card-heading">
+                  <div>
+                    <div className="result-meta-grid">
+                      <span className={sourceBadgeClass(item.source_type)}>{sourceLabel(item.source_type)}</span>
+                      {item.priority ? <span className="badge muted">priority: {item.priority}</span> : null}
+                      {item.trust_level ? <span className="badge muted">trust: {item.trust_level}</span> : null}
+                      {Number.isFinite(item.rank_score) ? <span className="badge muted">rank: {item.rank_score}</span> : null}
+                    </div>
+                    <p className="eyebrow">{item.rank_tier || "ranked result"}{item.section ? ` · ${item.section}` : ""}</p>
+                    <h3>{item.title || item.chunk_id}</h3>
+                  </div>
+                  <span className="badge">{selectedResult?.chunk_id === item.chunk_id ? "selected" : "view"}</span>
                 </div>
-                <p className="eyebrow">{item.rank_tier || "ranked result"}{item.section ? ` · ${item.section}` : ""}</p>
-                <h3>{item.title || item.chunk_id}</h3>
-              </div>
-              <span className="badge">{item.priority || "metadata"}</span>
-            </div>
-            <p>{item.summary || item.content || "No summary available."}</p>
-            {item.rank_reason ? <div className="rank-reason">{item.rank_reason}</div> : null}
-            <div className="path-line">{item.relative_path}</div>
-            <div className="badge-row">
-              <span className="badge muted">{item.chunk_id}</span>
-              {(item.tags || []).slice(0, 8).map((tag) => <span className="badge" key={tag}>{tag}</span>)}
-            </div>
-          </article>
-        ))}
-      </div>
+                <p className="summary-preview">{previewText(item)}</p>
+                <div className="path-line compact">{item.relative_path}</div>
+                <div className="badge-row">
+                  {listValue(item.tags).slice(0, 8).map((tag) => <span className="badge" key={tag}>{tag}</span>)}
+                </div>
+                {item.rank_reason ? (
+                  <details className="ranking-details" onClick={(event) => event.stopPropagation()}>
+                    <summary>Why this result?</summary>
+                    <div className="rank-reason">{item.rank_reason}</div>
+                  </details>
+                ) : null}
+              </article>
+            ))}
+          </div>
+          <aside className="detail-panel">
+            {selectedResult ? (
+              <>
+                <div className="detail-header">
+                  <div>
+                    <p className="eyebrow">Knowledge detail</p>
+                    <h3>{selectedResult.title || selectedResult.chunk_id}</h3>
+                    <p>{SOURCE_DESCRIPTIONS[selectedResult.source_type] || "Ranked search result from the selected knowledge domain."}</p>
+                  </div>
+                  <span className={sourceBadgeClass(selectedResult.source_type)}>{sourceLabel(selectedResult.source_type)}</span>
+                </div>
+                <div className="copy-row">
+                  <button type="button" className="secondary-button compact" onClick={() => copyText("chunk_id", selectedResult.chunk_id)}>Copy chunk_id</button>
+                  <button type="button" className="secondary-button compact" onClick={() => copyText("relative_path", selectedResult.relative_path)}>Copy path</button>
+                  <button type="button" className="secondary-button compact" onClick={() => copyText("content", selectedResult.content || selectedResult.summary)}>Copy content</button>
+                </div>
+                {copyStatus ? <div className="copy-status">{copyStatus}</div> : null}
+                <div className="detail-grid">
+                  <DetailField label="chunk_id">{selectedResult.chunk_id}</DetailField>
+                  <DetailField label="source_type">{selectedResult.source_type}</DetailField>
+                  <DetailField label="priority">{selectedResult.priority}</DetailField>
+                  <DetailField label="trust_level">{selectedResult.trust_level}</DetailField>
+                  <DetailField label="rank_score">{Number.isFinite(selectedResult.rank_score) ? selectedResult.rank_score : ""}</DetailField>
+                  <DetailField label="rank_tier">{selectedResult.rank_tier}</DetailField>
+                  <DetailField label="section">{selectedResult.section}</DetailField>
+                  <DetailField label="relative_path">{selectedResult.relative_path}</DetailField>
+                </div>
+                <section className="detail-section">
+                  <h4>Summary</h4>
+                  <p>{selectedResult.summary || "No summary available."}</p>
+                </section>
+                <section className="detail-section">
+                  <h4>Full content</h4>
+                  <pre>{selectedResult.content || selectedResult.summary || "No content available."}</pre>
+                </section>
+                <section className="detail-section">
+                  <h4>Tags and keywords</h4>
+                  <div className="badge-row">
+                    {[...listValue(selectedResult.tags), ...listValue(selectedResult.keywords)].slice(0, 20).map((tag) => <span className="badge" key={tag}>{tag}</span>)}
+                  </div>
+                </section>
+                <details className="ranking-details detail-ranking" open>
+                  <summary>Ranking explanation</summary>
+                  <div className="rank-reason">{selectedResult.rank_reason || "No ranking explanation returned."}</div>
+                </details>
+              </>
+            ) : (
+              <div className="empty-state compact">Select a result to inspect its detail.</div>
+            )}
+          </aside>
+        </div>
+      ) : null}
     </section>
   );
 }

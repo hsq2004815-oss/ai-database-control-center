@@ -19,4 +19,9 @@
 - Key files: `backend/app/services/search_service.py`, `frontend/src/pages/Search.jsx`, `frontend/src/styles.css`, `scripts/validate_project.py`, `PROJECT_REPORT.md`, `TASK_MEMORY.md`.
 - Verification: `python -m py_compile backend/app/main.py` passed; all `backend/app` Python files passed py_compile; `python scripts/validate_project.py` passed with ranking assertions; `cd frontend && npm run build` passed; `git diff --check` passed with LF/CRLF warnings only.
 - Known traps: Do not edit/copy/reindex `E:\DataBase`; SQLite connection is intentionally read-only; local database API `127.0.0.1:8765` may be unavailable, so `/brief` runtime behavior depends on starting it.
-- Next likely edit points: add Search source_type filters, add screenshot-based visual QA for 1366px/1920px, add simple token auth in V1.4/V1.5.
+- Last completed: V1.4 Knowledge Detail Viewer. Search now uses a results-list plus detail-panel UX: cards stay compact, selected result detail shows full content, metadata, tags/keywords, source type explanation, and ranking explanation. `rank_reason` is folded under `Why this result?` in cards and shown in the detail panel.
+- Search detail viewing: click or keyboard-select a result card; use Copy chunk_id, Copy path, or Copy content buttons in the detail panel. BackendKnowledge also has a lightweight selected-file metadata panel.
+- Key files: `frontend/src/pages/Search.jsx`, `frontend/src/pages/BackendKnowledge.jsx`, `frontend/src/styles.css`, `PROJECT_REPORT.md`, `TASK_MEMORY.md`.
+- Verification: `python -m py_compile backend/app/main.py` passed; all `backend/app` Python files passed py_compile; `python scripts/validate_project.py` passed; `cd frontend && npm run build` passed; `git diff --check` passed with LF/CRLF warnings only.
+- Known traps: Do not edit/copy/reindex `E:\DataBase`; SQLite connection is intentionally read-only; local database API `127.0.0.1:8765` may be unavailable, so `/brief` runtime behavior depends on starting it.
+- Next likely edit points: add Search source_type filters, add screenshot-based visual QA for 1366px/1920px, add optional frontend detail refresh from `/backend/chunks/{chunk_id}`.
