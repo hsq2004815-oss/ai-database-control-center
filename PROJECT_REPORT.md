@@ -391,3 +391,84 @@ BackendKnowledge 保留文件类型切换，文件列表新增可选中状态，
 - 增加 Search source_type 快捷筛选，配合详情面板快速切换 rules/templates/project references。
 - 增加截图验收，覆盖 1366px 宽屏两栏和移动端单列。
 - 后续可增加 `/backend/chunks/{chunk_id}` 的前端“刷新详情”按钮，但仍保持只读。
+
+# V1.5 Agent Handoff Export Report
+
+## 1. 本次目标
+
+V1.5 将 Search 和 Brief 的当前上下文整理为可直接交给 Codex、opencode、Claude Code 等 Agent 的 Markdown handoff。导出在浏览器端完成，不新增依赖，不写入 `E:\DataBase`，不改变现有 API 路径。
+
+## 2. 修改的 frontend 文件
+
+- `frontend/src/pages/Search.jsx`
+- `frontend/src/pages/Brief.jsx`
+- `frontend/src/styles.css`
+- `frontend/src/utils/handoffExport.js`
+
+同时小范围更新 `README.md` 的 Features、Frontend Pages、Roadmap。
+
+## 3. 是否修改 backend 文件
+
+未修改 backend 文件。现有 `/search` 与 `/brief` 返回字段足够前端整理 handoff markdown。
+
+## 4. Search 页面新增导出能力
+
+- Copy Handoff Markdown
+- Download Handoff `.md`
+- Copy Selected Result
+- Copy Selected Result as Prompt Context
+
+无搜索结果时按钮禁用，并显示需要先运行搜索的说明。
+
+## 5. Brief 页面新增导出能力
+
+- Copy Agent Handoff
+- Download Agent Handoff `.md`
+- Copy Prompt for Codex
+- Copy Prompt for opencode
+- Copy Full Debug
+
+无 Brief 结果时按钮禁用，并提示需要先生成 brief。
+
+## 6. Handoff Markdown 内容
+
+Search handoff 包含：
+
+- Task / Query: query、domain、limit、generated_at
+- Recommended Usage
+- Ranked Knowledge Results: title、chunk_id、source_type、priority、trust_level、rank_score、relative_path、section、summary、content、tags、rank_reason
+- Safety Notes: `E:\DataBase` read-only、不要重建索引、优先 rules/checklists/templates、GitHub project analysis 仅作参考
+
+Brief handoff 包含：
+
+- Original Task
+- Retrieval Settings
+- Backend Queries
+- Workflow Queries
+- Retrieved Backend Chunks
+- Retrieved Workflow Chunks
+- Final Agent Instructions
+- Upstream Final Handoff
+- 可选 Raw Debug Output
+
+## 7. Clipboard / download 实现
+
+复制优先使用 Clipboard API，失败时使用 textarea fallback。下载使用浏览器端 Blob 生成 `.md` 文件，文件名格式为 `search-handoff-YYYYMMDD-HHMMSS.md` 和 `brief-handoff-YYYYMMDD-HHMMSS.md`。没有后端写文件。
+
+## 8. 验证结果
+
+- `python -m py_compile E:\Projects\personal-ai-db-control-center\backend\app\main.py`: 已通过。
+- `backend\app` 下所有 Python 文件 `py_compile`: 已通过。
+- `python E:\Projects\personal-ai-db-control-center\scripts\validate_project.py`: 已通过。
+- `cd E:\Projects\personal-ai-db-control-center\frontend && npm run build`: 已通过。
+- `git diff --check`: 已通过，只有 Windows LF/CRLF 提示。
+
+## 9. 未修改 E:\DataBase 的确认
+
+本轮没有修改 `E:\DataBase`，没有修改 `E:\DataBase\backend_api`，没有修改 `E:\DataBase\runtime\db`，没有重建索引，没有清空 SQLite 表，没有复制数据库文件，没有新增依赖，没有改变 API 路径。
+
+## 10. 下一步建议
+
+- 为 Search 导出增加 top 3 / top 5 / all 范围选择。
+- 为 Brief 导出增加 Short / Full 模式预览。
+- 后续可加入标准化 handoff schema，但仍保持导出在浏览器端完成。

@@ -27,6 +27,7 @@ This project provides a small, practical control center over a local database:
 - Knowledge domain browser.
 - Report viewer.
 - Brief generator for AI coding agents.
+- Agent Handoff Markdown export for Codex, opencode, and Claude Code.
 - Read-only access to `E:\DataBase`.
 - Upstream API proxy to `http://127.0.0.1:8765`.
 - Safe fallback to local manifests and SQLite read-only query.
@@ -174,10 +175,10 @@ See [`docs/API.md`](docs/API.md) for the API reference.
 
 - **Dashboard**: database root status, upstream API status, backend chunk counts, domain overview, recent reports.
 - **Domains**: allowed domains, available sources, operations, and domain status details.
-- **Search**: domain-aware search with usage hints for backend, UI design, and automation queries.
+- **Search**: domain-aware search with usage hints, ranking detail viewer, and Agent Handoff Markdown export.
 - **Backend Knowledge**: browser for backend rules, topics, patterns, checklists, templates, references, and reports.
 - **Reports**: report list and scrollable report reader.
-- **Brief**: task prompt, retrieval limits, returned chunks, final handoff, and folded debug output.
+- **Brief**: task prompt, retrieval limits, returned chunks, final handoff, folded debug output, and copy/download agent handoff export.
 
 ## How It Uses `E:\DataBase`
 
@@ -259,8 +260,8 @@ personal-ai-db-control-center/
 - **V1.2:** GitHub presentation polish / README / screenshots.
 - **V1.3:** Search weighting optimization.
 - **V1.4:** Read-only frontend detail viewer improvements.
-- **V1.5:** Optional token authentication.
-- **V1.6:** Agent SDK / standardized handoff payload.
+- **V1.5:** Agent Handoff Markdown export for Search and Brief.
+- **V1.6:** Optional token authentication and standardized handoff payload refinements.
 
 ## Resume Description
 

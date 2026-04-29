@@ -392,6 +392,33 @@ h3 {
   line-height: 1.5;
 }
 
+.export-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(320px, 1.2fr);
+  gap: 14px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  padding: 14px;
+}
+
+.export-panel span {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .result-meta-grid {
   display: flex;
   flex-wrap: wrap;
@@ -718,6 +745,11 @@ h3 {
   cursor: default;
 }
 
+.secondary-button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
 .secondary-button {
   background: var(--surface);
   color: var(--text);
@@ -977,6 +1009,7 @@ textarea:focus {
   .domain-status-grid,
   .domain-grid,
   .usage-hint-panel,
+  .export-panel,
   .search-results-shell,
   .backend-file-shell,
   .brief-result-grid {
@@ -1015,6 +1048,7 @@ textarea:focus {
   .usage-hint-panel,
   .command-panel,
   .split-view,
+  .export-panel,
   .search-results-shell,
   .backend-file-shell,
   .brief-result-grid,
@@ -1033,6 +1067,10 @@ textarea:focus {
 
   .detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .export-actions {
+    justify-content: flex-start;
   }
 }
 

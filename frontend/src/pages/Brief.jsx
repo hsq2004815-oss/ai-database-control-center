@@ -1,6 +1,12 @@
 import { useState } from "react";
 import { api } from "../api.js";
 import BriefPanel from "../components/BriefPanel.jsx";
+import {
+  buildBriefHandoffMarkdown,
+  copyToClipboard,
+  downloadMarkdown,
+  timestampForFile
+} from "../utils/handoffExport.js";
 
 export default function Brief() {
   const [task, setTask] = useState("帮我做一个 FastAPI 登录注册后端");
@@ -8,6 +14,7 @@ export default function Brief() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [exportStatus, setExportStatus] = useState("");
 
   function setLimit(name, value) {
     setLimits((current) => ({ ...current, [name]: Number(value) }));
@@ -17,6 +24,7 @@ export default function Brief() {
     event.preventDefault();
     setLoading(true);
     setError("");
+    setExportStatus("");
     try {
       setData(await api.brief({ task, ...limits }));
     } catch (err) {
@@ -24,6 +32,28 @@ export default function Brief() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function copyBriefHandoff({ target = "agent", includeDebug = false, label = "handoff" } = {}) {
+    if (!data) {
+      setExportStatus("Generate a brief before exporting");
+      return;
+    }
+    try {
+      await copyToClipboard(buildBriefHandoffMarkdown({ task, limits, data, includeDebug, target }));
+      setExportStatus(`Copied ${label}`);
+    } catch {
+      setExportStatus(`Could not copy ${label}`);
+    }
+  }
+
+  function downloadBriefHandoff() {
+    if (!data) {
+      setExportStatus("Generate a brief before exporting");
+      return;
+    }
+    downloadMarkdown(`brief-handoff-${timestampForFile()}.md`, buildBriefHandoffMarkdown({ task, limits, data }));
+    setExportStatus("Downloaded agent handoff");
   }
 
   return (
@@ -49,6 +79,21 @@ export default function Brief() {
         </div>
         <button className="primary-button" disabled={loading} type="submit">{loading ? "Generating" : "Generate brief"}</button>
       </form>
+      <section className="export-panel">
+        <div>
+          <p className="eyebrow">Agent export</p>
+          <h3>Brief handoff markdown</h3>
+          <span>{data ? "Copy or download the current brief as an agent-ready context package." : "Generate a brief to enable agent handoff export."}</span>
+        </div>
+        <div className="export-actions">
+          <button type="button" className="secondary-button compact" disabled={!data} onClick={() => copyBriefHandoff({ label: "agent handoff" })}>Copy Agent Handoff</button>
+          <button type="button" className="secondary-button compact" disabled={!data} onClick={downloadBriefHandoff}>Download Agent Handoff .md</button>
+          <button type="button" className="secondary-button compact" disabled={!data} onClick={() => copyBriefHandoff({ target: "codex", label: "prompt for Codex" })}>Copy Prompt for Codex</button>
+          <button type="button" className="secondary-button compact" disabled={!data} onClick={() => copyBriefHandoff({ target: "opencode", label: "prompt for opencode" })}>Copy Prompt for opencode</button>
+          <button type="button" className="secondary-button compact" disabled={!data} onClick={() => copyBriefHandoff({ includeDebug: true, label: "full debug handoff" })}>Copy Full Debug</button>
+        </div>
+        {exportStatus ? <div className="copy-status">{exportStatus}</div> : null}
+      </section>
       {error ? <div className="error-banner">{error}</div> : null}
       {loading ? <div className="empty-state">Calling the upstream brief endpoint...</div> : null}
       <BriefPanel data={data} limits={limits} />

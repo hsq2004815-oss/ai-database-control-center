@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { api } from "../api.js";
 import SearchPanel from "../components/SearchPanel.jsx";
+import {
+  buildSearchHandoffMarkdown,
+  buildSearchResultMarkdown,
+  copyToClipboard,
+  downloadMarkdown,
+  timestampForFile
+} from "../utils/handoffExport.js";
 
 const DOMAIN_HINTS = {
   backend: "API, JWT, RBAC, database, deployment, security",
@@ -112,22 +119,37 @@ export default function Search() {
       return;
     }
     try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const textarea = document.createElement("textarea");
-        textarea.value = text;
-        textarea.setAttribute("readonly", "");
-        textarea.style.position = "fixed";
-        textarea.style.opacity = "0";
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand("copy");
-        document.body.removeChild(textarea);
-      }
+      await copyToClipboard(text);
       setCopyStatus(`${label} copied`);
     } catch {
       setCopyStatus(`Could not copy ${label}`);
+    }
+  }
+
+  async function copySearchHandoff() {
+    try {
+      await copyToClipboard(buildSearchHandoffMarkdown({ meta, results }));
+      setCopyStatus("Copied handoff markdown");
+    } catch {
+      setCopyStatus("Could not copy handoff markdown");
+    }
+  }
+
+  function downloadSearchHandoff() {
+    downloadMarkdown(`search-handoff-${timestampForFile()}.md`, buildSearchHandoffMarkdown({ meta, results }));
+    setCopyStatus("Downloaded handoff markdown");
+  }
+
+  async function copySelectedResult(asPromptContext = false) {
+    if (!selectedResult) {
+      setCopyStatus("No selected result");
+      return;
+    }
+    try {
+      await copyToClipboard(buildSearchResultMarkdown(selectedResult, { asPromptContext }));
+      setCopyStatus(asPromptContext ? "Copied selected result as prompt context" : "Copied selected result");
+    } catch {
+      setCopyStatus("Could not copy selected result");
     }
   }
 
@@ -161,6 +183,20 @@ export default function Search() {
       <div className="results-meta">
         {loading ? "Searching the selected knowledge source..." : meta ? `${meta.source} · ${results.length} results · ${meta.query}` : "Run a search to inspect chunks and file metadata."}
       </div>
+      <section className="export-panel">
+        <div>
+          <p className="eyebrow">Agent export</p>
+          <h3>Search handoff markdown</h3>
+          <span>{results.length ? "Package current ranked results for Codex, opencode, or Claude Code." : "Run a search to enable handoff export."}</span>
+        </div>
+        <div className="export-actions">
+          <button type="button" className="secondary-button compact" disabled={!results.length} onClick={copySearchHandoff}>Copy Handoff Markdown</button>
+          <button type="button" className="secondary-button compact" disabled={!results.length} onClick={downloadSearchHandoff}>Download Handoff .md</button>
+          <button type="button" className="secondary-button compact" disabled={!selectedResult} onClick={() => copySelectedResult(false)}>Copy Selected Result</button>
+          <button type="button" className="secondary-button compact" disabled={!selectedResult} onClick={() => copySelectedResult(true)}>Copy Selected Result as Prompt Context</button>
+        </div>
+        {copyStatus ? <div className="copy-status">{copyStatus}</div> : null}
+      </section>
       {loading ? <div className="empty-state">Searching...</div> : null}
       {searched && !loading && !error && !results.length ? <div className="empty-state">{emptyMessage(meta)}</div> : null}
       {results.length ? (
